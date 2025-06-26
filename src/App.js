@@ -3,6 +3,22 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, getDoc, setDoc, deleteDoc, FieldValue, increment } from 'firebase/firestore';
 
+// 🔧 Replace these with your actual Firebase settings
+const __app_id = "crush-board"; // or any ID you want
+
+const __firebase_config = JSON.stringify({
+  apiKey: "AIzaSyBZ1CcxjdZKr01vOymk1p6cudFXxRsjgNk",
+  authDomain: "crush-board.firebaseapp.com",
+  projectId: "crush-board",
+  storageBucket: "crush-board.firebasestorage.app",
+  messagingSenderId: "6329318993",
+  appId: "1:6329318993:web:c4e95231b89f158cd54270",
+  measurementId: "G-WE6BLDLGFH"
+});
+
+const __initial_auth_token = null; // Using anonymous auth
+
+
 // --- SVG Icons ---
 const HeartIcon = ({ filled, className = "" }) => (
   <svg className={`w-6 h-6 inline-block ${className}`} fill={filled ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 20 20">
