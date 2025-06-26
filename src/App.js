@@ -3,6 +3,22 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, getDoc, setDoc, deleteDoc, FieldValue, increment } from 'firebase/firestore';
 
+//  Replace these with your actual Firebase settings
+const __app_id = "crush-board"; // or any ID you want
+
+const __firebase_config = JSON.stringify({
+  apiKey: "AIzaSyBZ1CcxjdZKr01vOymk1p6cudFXxRsjgNk",
+  authDomain: "crush-board.firebaseapp.com",
+  projectId: "crush-board",
+  storageBucket: "crush-board.firebasestorage.app",
+  messagingSenderId: "6329318993",
+  appId: "1:6329318993:web:c4e95231b89f158cd54270",
+  measurementId: "G-WE6BLDLGFH"
+});
+
+const __initial_auth_token = null; // Using anonymous auth
+
+
 // --- SVG Icons ---
 const HeartIcon = ({ filled, className = "" }) => (
   <svg className={`w-6 h-6 inline-block ${className}`} fill={filled ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 20 20">
@@ -286,7 +302,7 @@ const ReplyModal = ({ isOpen, onClose, originalConfession, db, userId, formatTim
   useEffect(() => {
     if (!db || !originalConfession?.id) return;
 
-    const appId = typeof process.env.REACT_APP_FIREBASE_APP_ID !== 'undefined' ? process.env.REACT_APP_FIREBASE_APP_ID : 'default-app-id';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const repliesCollectionPath = `artifacts/${appId}/public/data/crush_board/${originalConfession.id}/replies`;
     const q = query(collection(db, repliesCollectionPath), orderBy('timestamp', 'asc')); // Order replies by time
 
@@ -318,7 +334,7 @@ const ReplyModal = ({ isOpen, onClose, originalConfession, db, userId, formatTim
 
     setIsReplying(true);
     try {
-      const appId = typeof process.env.REACT_APP_FIREBASE_APP_ID !== 'undefined' ? process.env.REACT_APP_FIREBASE_APP_ID : 'default-app-id';
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
       const repliesCollectionPath = `artifacts/${appId}/public/data/crush_board/${originalConfession.id}/replies`;
       await addDoc(collection(db, repliesCollectionPath), {
         message: replyMessage.trim(),
@@ -452,7 +468,7 @@ const App = () => {
 
     setIsPosting(true);
     try {
-      const appId = typeof process.env.REACT_APP_FIREBASE_APP_ID !== 'undefined' ? process.env.REACT_APP_FIREBASE_APP_ID : 'default-app-id';
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
       const publicCollectionPath = `artifacts/${appId}/public/data/crush_board`;
       await addDoc(collection(db, publicCollectionPath), {
         message: message.trim(),
@@ -521,7 +537,7 @@ const App = () => {
       return;
     }
 
-    const appId = typeof process.env.REACT_APP_FIREBASE_APP_ID !== 'undefined' ? process.env.REACT_APP_FIREBASE_APP_ID : 'default-app-id';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const confessionRef = doc(db, `artifacts/${appId}/public/data/crush_board`, confessionId);
 
     try {
@@ -556,18 +572,8 @@ const App = () => {
   // Initialize Firebase and handle authentication
   useEffect(() => {
     try {
-      // Access environment variables
-      const appId = process.env.REACT_APP_FIREBASE_APP_ID || 'default-app-id';
-      const firebaseConfig = {
-        apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID, // Note: CRA uses REACT_APP_FIREBASE_APP_ID for its own build-time, Firebase appId is usually REACT_APP_FIREBASE_MEASUREMENT_ID
-        measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
-      };
-      
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+      const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
       const app = initializeApp(firebaseConfig);
       const firestore = getFirestore(app);
       const authInstance = getAuth(app);
@@ -585,9 +591,8 @@ const App = () => {
           setUserId(user.uid);
         } else {
           try {
-            const initialAuthToken = process.env.REACT_APP_INITIAL_AUTH_TOKEN;
-            if (initialAuthToken) {
-              await signInWithCustomToken(authInstance, initialAuthToken);
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(authInstance, __initial_auth_token);
             } else {
               await signInAnonymously(authInstance);
             }
@@ -612,19 +617,22 @@ const App = () => {
   useEffect(() => {
     if (!db || !isAuthReady) return;
     setLoading(true);
-    const appId = process.env.REACT_APP_FIREBASE_APP_ID || 'default-app-id';
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const publicCollectionPath = `artifacts/${appId}/public/data/crush_board`;
+    // Fetch all documents. Client-side sorting will be applied based on currentView.
     const q = query(collection(db, publicCollectionPath)); 
 
     const unsub = onSnapshot(q, (snapshot) => {
       let fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
+      // Ensure likesCount is a number and likedBy is an object
       fetched = fetched.map(conf => ({
         ...conf,
         likesCount: typeof conf.likesCount === 'number' ? conf.likesCount : 0,
         likedBy: typeof conf.likedBy === 'object' && conf.likedBy !== null ? conf.likedBy : {}
       }));
 
+      // Sort by newest first for default views if not popular
       fetched.sort((a, b) => (b.timestamp?.seconds ?? 0) - (a.timestamp?.seconds ?? 0));
 
       const oneWeekAgo = new Date();
@@ -642,7 +650,7 @@ const App = () => {
         }
       });
 
-      setAllConfessions(fetched);
+      setAllConfessions(fetched); // Keep all for unfiltered search
       setRecentConfessions(newRecent);
       setArchivedConfessions(newArchived);
       setLoading(false);
@@ -659,18 +667,23 @@ const App = () => {
   useEffect(() => {
     let confessionsToProcess = [];
 
+    // Prioritize displaying a single shared confession
     if (sharedConfessionId && allConfessions.length > 0) {
       const foundConfession = allConfessions.find(c => c.id === sharedConfessionId);
       confessionsToProcess = foundConfession ? [foundConfession] : [];
     } else {
+      // Determine base list based on current view
       if (currentView === 'recent') {
         confessionsToProcess = recentConfessions;
       } else if (currentView === 'archive') {
         confessionsToProcess = archivedConfessions;
       } else if (currentView === 'popular') {
+        // For popular, sort all available confessions by likesCount
+        // Create a shallow copy to avoid mutating state directly during sort
         confessionsToProcess = [...allConfessions].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
       }
 
+      // Apply search term filtering if present
       if (searchTerm) {
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
         confessionsToProcess = confessionsToProcess.filter(confession => {
@@ -709,17 +722,33 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-300 via-purple-300 to-indigo-400 p-4 font-inter text-gray-800 flex flex-col items-center justify-between">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.5); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.8); }
+        @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+        @keyframes modal-in { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        .animate-modal-in { animation: modal-in 0.3s ease-out forwards; }
+      `}</style>
+      
+      {/* Navigation Bar at the top */}
       <NavBar
         onOpenSearch={() => { setIsSearchModalOpen(true); setSearchTerm(''); }}
         onChangeView={handleChangeView}
         currentView={currentView}
       />
 
+      {/* Main Header */}
       <Header
         userId={userId}
         onClearSharedConfession={sharedConfessionId ? handleClearSharedConfession : null}
       />
 
+      {/* Main Confessions List (Recent, Archived, Popular, or Single Shared) */}
       <ConfessionsList
         loading={loading}
         confessions={filteredConfessions}
@@ -732,12 +761,14 @@ const App = () => {
         userId={userId}
       />
 
+      {/* Floating Action Button for Posting Confessions */}
       <div className="fixed bottom-6 right-6 z-40">
         <button onClick={() => setIsFormModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-110 hover:shadow-2xl" aria-label="Post a new confession" title="Post a new confession">
           <PlusIcon />
         </button>
       </div>
 
+      {/* Confession Form Modal */}
       <ConfessionFormModal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)}>
         <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">Post Your Confession</h2>
         <div className="space-y-4">
@@ -772,6 +803,7 @@ const App = () => {
         </div>
       </ConfessionFormModal>
 
+      {/* Search Modal */}
       <SearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
@@ -781,6 +813,7 @@ const App = () => {
         setSearchCategory={setSearchCategory}
       />
 
+      {/* Reply Modal */}
       <ReplyModal
         isOpen={isReplyModalOpen}
         onClose={() => { setIsReplyModalOpen(false); setCurrentConfessionToReplyTo(null); }}
@@ -791,8 +824,10 @@ const App = () => {
         onShowInfoModal={(msg) => { setModalMessage(msg); setShowInfoModal(true); }}
       />
 
+      {/* Info/Error Modal */}
       {showInfoModal && <InfoModal message={modalMessage} onClose={() => setShowInfoModal(false)} />}
 
+      {/* Slim Footer */}
       <footer className="w-full max-w-3xl bg-white/30 backdrop-blur-lg p-3 rounded-2xl shadow-xl mt-8 flex flex-col items-center justify-center text-gray-700 text-sm border border-white/20">
         <p className="mb-1">©️AVSC 2025 | Built for projectbeta webdev bootcamp</p>
         <p>Powered by ASTRA, Hackclub and the music of love</p>
